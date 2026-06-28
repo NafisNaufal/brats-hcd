@@ -1,0 +1,11 @@
+inherit: base.yaml
+experiment_name: exp4_swin_hcd_nose
+
+# Ablation: no SE recalibration
+model:
+  encoder_type: swin
+  use_hierarchy: true
+  use_se: false
+  feature_size: 48
+  pretrained: true
+  use_checkpoint: true

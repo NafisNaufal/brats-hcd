@@ -1,0 +1,11 @@
+inherit: base.yaml
+experiment_name: exp2_resnet50_hcd
+
+model:
+  encoder_type: resnet50
+  use_hierarchy: true
+  use_se: true
+  pretrained: true
+
+data:
+  sw_batch_size: 1

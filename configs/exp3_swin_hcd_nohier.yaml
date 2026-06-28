@@ -1,0 +1,11 @@
+inherit: base.yaml
+experiment_name: exp3_swin_hcd_nohier
+
+# Ablation: parallel heads (no hierarchical conditioning)
+model:
+  encoder_type: swin
+  use_hierarchy: false
+  use_se: true
+  feature_size: 48
+  pretrained: true
+  use_checkpoint: true

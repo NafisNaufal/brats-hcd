@@ -1,0 +1,16 @@
+inherit: base.yaml
+experiment_name: exp0_swin_flat
+
+# Baseline: Swin encoder + flat FPN decoder (no hierarchy, no SE).
+# This isolates the contribution of HCD over a vanilla FPN decoder
+# with the same encoder and training setup.
+model:
+  encoder_type: swin
+  use_hierarchy: false
+  use_se: false
+  feature_size: 48
+  pretrained: true
+  use_checkpoint: true
+
+loss:
+  consistency_weight: 0.0   # no hierarchy → consistency loss is meaningless

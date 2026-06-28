@@ -1,0 +1,12 @@
+inherit: base.yaml
+experiment_name: exp2b_resnet50_hcd_h256
+
+model:
+  encoder_type: resnet50
+  use_hierarchy: true
+  use_se: true
+  pretrained: true
+  hcd_hidden: 256   # reduces FPN bottleneck 2048→256 (8x) vs original 2048→128 (16x)
+
+data:
+  sw_batch_size: 1

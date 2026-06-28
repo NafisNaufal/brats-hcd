@@ -1,0 +1,18 @@
+inherit: base.yaml
+experiment_name: exp5_swinunetr
+
+# SwinUNETR baseline: MONAI's published architecture, same split and training
+# setup as HCD experiments. Provides a fair same-split comparison number.
+model:
+  encoder_type: swinunetr
+  in_channels: 4
+  num_classes: 3
+  feature_size: 48
+  use_checkpoint: true
+  # SwinUNETR has its own decoder; HCD-specific fields are ignored
+  use_hierarchy: false
+  use_se: false
+  pretrained: false   # MONAI SwinUNETR loads its own SSL weights internally
+
+loss:
+  consistency_weight: 0.0
