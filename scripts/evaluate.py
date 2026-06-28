@@ -75,8 +75,8 @@ def evaluate(cfg: dict, ckpt: Path, device: torch.device) -> dict:
     sw_batch   = cfg["data"].get("sw_batch_size", 2)
     amp        = cfg["training"].get("amp", True)
 
-    dice_metric = DiceMetric(include_background=False, reduction="none", get_not_nans=False)
-    hd95_metric = HausdorffDistanceMetric(include_background=False, percentile=95,
+    dice_metric = DiceMetric(include_background=True, reduction="none", get_not_nans=False)
+    hd95_metric = HausdorffDistanceMetric(include_background=True, percentile=95,
                                           reduction="none", get_not_nans=False)
 
     def _predict(x: torch.Tensor) -> torch.Tensor:
