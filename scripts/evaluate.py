@@ -106,8 +106,13 @@ def evaluate(cfg: dict, ckpt: Path, device: torch.device) -> dict:
     hd95_vals = hd95_metric.aggregate().cpu().numpy()   # (N, 3)
 
     # model channel order: 0=ET, 1=TC, 2=WT
-    dice_et, dice_tc, dice_wt = dice_vals[:, 0].mean(), dice_vals[:, 1].mean(), dice_vals[:, 2].mean()
-    hd95_et, hd95_tc, hd95_wt = hd95_vals[:, 0].mean(), hd95_vals[:, 1].mean(), hd95_vals[:, 2].mean()
+    # nanmean excludes cases where GT is empty (0/0 → NaN), matching BraTS eval convention
+    dice_et  = float(np.nanmean(dice_vals[:, 0]))
+    dice_tc  = float(np.nanmean(dice_vals[:, 1]))
+    dice_wt  = float(np.nanmean(dice_vals[:, 2]))
+    hd95_et  = float(np.nanmean(hd95_vals[:, 0]))
+    hd95_tc  = float(np.nanmean(hd95_vals[:, 1]))
+    hd95_wt  = float(np.nanmean(hd95_vals[:, 2]))
 
     return {
         "dsc_wt": float(dice_wt), "dsc_tc": float(dice_tc), "dsc_et": float(dice_et),
