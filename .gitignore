@@ -38,19 +38,8 @@ manifests/local_*.json
 # Weights cache
 .cache/
 
-# Paper build artifacts
-paper/*.aux
-paper/*.log
-paper/*.out
-paper/*.bbl
-paper/*.blg
-paper/*.fls
-paper/*.fdb_latexmk
-paper/*.synctex.gz
-paper/main.pdf
-# figures PDFs are committed (they are generated assets, not build artifacts)
-paper/figures/*.aux
-paper/figures/*.log
+# Paper directory — never commit
+paper/
 
 # IDE
 .vscode/
