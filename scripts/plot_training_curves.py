@@ -1,4 +1,4 @@
-"""Pull training curves from W&B and save as a PDF figure.
+"""Pull training curves from W&B and save as a publication-quality PDF.
 
 Usage:
     WANDB_API_KEY=<key> python scripts/plot_training_curves.py \
@@ -12,40 +12,60 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import numpy as np
 
-ENTITY = "kc_brats"
+ENTITY  = "kc_brats"
 PROJECT = "brats-segmentation"
+METRIC  = "val_dice"
 
-# Map W&B run name prefix → display label and color
-RUN_STYLE: dict[str, tuple[str, str, str]] = {
-    "exp0_swin_flat":           ("E0  Flat-Swin",       "#888888", "-"),
-    "exp1_swin_hcd":            ("E1  HCD-Swin",        "#2ca02c", "-"),
-    "exp2_resnet50_hcd":        ("E2  HCD-ResNet50",    "#d62728", "--"),
-    "exp3_swin_hcd_nohier":     ("E3  SE only",         "#ff7f0e", "-."),
-    "exp4_swin_hcd_nose":       ("E4  Hier. only",      "#9467bd", ":"),
-    "exp5_swinunetr":           ("E5  SwinUNETR",       "#1f77b4", "-"),
+COLUMN_WIDTH = 3.5  # IEEE single column
+
+RUN_STYLE: dict[str, tuple[str, str, str, float]] = {
+    "exp0_swin_flat":       ("E0  Flat-Swin",    "#888888", "-",  1.2),
+    "exp1_swin_hcd":        ("E1  HCD-Swin",     "#2ECC71", "-",  1.8),
+    "exp2_resnet50_hcd":    ("E2  HCD-ResNet50", "#E74C3C", "--", 1.2),
+    "exp3_swin_hcd_nohier": ("E3  SE only",      "#E67E22", "-.", 1.2),
+    "exp4_swin_hcd_nose":   ("E4  Hier. only",   "#9B59B6", ":",  1.2),
+    "exp5_swinunetr":       ("E5  SwinUNETR",    "#2980B9", "-",  1.8),
 }
 
-METRIC = "val_dice"
+
+def pub_rc() -> dict:
+    return {
+        "font.family":       "serif",
+        "font.size":         8,
+        "axes.titlesize":    8,
+        "axes.labelsize":    8,
+        "xtick.labelsize":   7,
+        "ytick.labelsize":   7,
+        "legend.fontsize":   7,
+        "lines.linewidth":   1.2,
+        "axes.linewidth":    0.8,
+        "pdf.fonttype":      42,
+        "ps.fonttype":       42,
+    }
+
+
+def smooth(vals: list[float], w: int = 5) -> list[float]:
+    if len(vals) < w:
+        return vals
+    kernel = np.ones(w) / w
+    padded = np.pad(vals, (w // 2, w // 2), mode="edge")
+    return np.convolve(padded, kernel, mode="valid").tolist()
 
 
 def fetch_runs() -> dict[str, tuple[list[int], list[float]]]:
     import wandb
-    api = wandb.Api()
+    api  = wandb.Api()
     runs = api.runs(f"{ENTITY}/{PROJECT}")
-
     data: dict[str, tuple[list[int], list[float]]] = {}
+
     for run in runs:
         name = run.name or run.id
-        matched = None
-        for prefix in RUN_STYLE:
-            if name.startswith(prefix):
-                matched = prefix
-                break
+        matched = next((p for p in RUN_STYLE if name.startswith(p)), None)
         if matched is None:
             continue
-
         history = run.history(keys=["epoch", METRIC], pandas=False)
         epochs = [r.get("epoch", i) for i, r in enumerate(history) if METRIC in r]
         vals   = [r[METRIC] for r in history if METRIC in r]
@@ -61,32 +81,41 @@ def main() -> None:
     parser.add_argument("--out", default="paper/figures/training_curves.pdf")
     args = parser.parse_args()
 
-    print("Fetching runs from W&B...")
+    print("Fetching from W&B...")
     data = fetch_runs()
-
     if not data:
-        print("No runs found. Check ENTITY/PROJECT and WANDB_API_KEY.")
+        print("No data found. Check WANDB_API_KEY and entity/project.")
         return
 
-    fig, ax = plt.subplots(figsize=(8, 4.5))
+    with plt.rc_context(pub_rc()):
+        fig, ax = plt.subplots(figsize=(COLUMN_WIDTH * 2, 2.6))
 
-    for prefix, (epochs, vals) in sorted(data.items()):
-        label, color, ls = RUN_STYLE[prefix]
-        ax.plot(epochs, vals, label=label, color=color, linestyle=ls,
-                linewidth=1.5, alpha=0.9)
+        for prefix in RUN_STYLE:
+            if prefix not in data:
+                continue
+            label, color, ls, lw = RUN_STYLE[prefix]
+            epochs, vals = data[prefix]
+            smoothed = smooth(vals, w=7)
+            ax.plot(epochs, smoothed, label=label, color=color,
+                    linestyle=ls, linewidth=lw, alpha=0.92)
+            # faint raw trace behind smooth
+            ax.plot(epochs, vals, color=color, linewidth=0.3, alpha=0.25)
 
-    ax.set_xlabel("Epoch", fontsize=10)
-    ax.set_ylabel("Validation Dice (mean)", fontsize=10)
-    ax.set_ylim(0.5, 0.95)
-    ax.legend(fontsize=8, loc="lower right", ncol=2)
-    ax.spines[["top", "right"]].set_visible(False)
-    ax.grid(linestyle="--", linewidth=0.4, alpha=0.5)
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Validation Dice (mean, $\\uparrow$)")
+        ax.set_ylim(0.50, 0.95)
+        ax.xaxis.set_major_locator(ticker.MaxNLocator(integer=True, nbins=6))
+        ax.yaxis.set_major_locator(ticker.MultipleLocator(0.05))
+        ax.legend(loc="lower right", framealpha=0.9,
+                  edgecolor="#cccccc", ncol=2)
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.grid(linestyle=":", linewidth=0.5, color="#bbbbbb")
 
-    fig.tight_layout()
-    out = Path(args.out)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(str(out), dpi=200, bbox_inches="tight")
-    print(f"Saved: {out}")
+        fig.tight_layout(pad=0.5)
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(str(out), dpi=300, bbox_inches="tight", format="pdf")
+        print(f"Saved: {out}")
 
 
 if __name__ == "__main__":
